@@ -2,7 +2,7 @@
 This program checks two big files and compare them, avoiding to signal as error if two lines are presents in both files but in different order. 
 
 ## Installation
-This program requires jwangsadinata's go-multimap library, so run
+This program requires [jwangsadinata's go-multimap library](https://github.com/jwangsadinata/go-multimap), so run
 
 ```
 go get -u github.com/jwangsadinata/go-multimap
