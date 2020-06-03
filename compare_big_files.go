@@ -1,33 +1,23 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"strconv"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
+	"github.com/jwangsadinata/go-multimap/slicemultimap"
 )
 
-const chunkSize = 64000
+const fromBtoMB = 1024 * 1024
 
 func main() {
-
-	file1 := os.Args[1]
-	file2 := os.Args[2]
-
-	fmt.Println("Start!")
-
-	deepCompare(file1, file2)
-
+	deepCompare(os.Args[1], os.Args[2])
 	fmt.Println("Done!")
 }
 
 func deepCompare(file1, file2 string) bool {
-	dmp := diffmatchpatch.New()
-
-	// Check file size ...
 
 	f1, err := os.Open(file1)
 	if err != nil {
@@ -41,28 +31,47 @@ func deepCompare(file1, file2 string) bool {
 	}
 	defer f2.Close()
 
-	for {
-		b1 := make([]byte, chunkSize)
-		_, err1 := f1.Read(b1)
+	newm := slicemultimap.New()
 
-		b2 := make([]byte, chunkSize)
-		_, err2 := f2.Read(b2)
+	row1 := 1
+	row2 := 1
 
-		if err1 != nil || err2 != nil {
-			if err1 == io.EOF && err2 == io.EOF {
-				return true
-			} else if err1 == io.EOF || err2 == io.EOF {
-				return false
-			} else {
-				log.Fatal(err1, err2)
-			}
-		}
+	//LOAD CHUNCK
+	scanner := bufio.NewScanner(f1)
+	buf := make([]byte, 0, 1*fromBtoMB)
+	scanner.Buffer(buf, 10*fromBtoMB)
 
-		diffs := dmp.DiffMain(b1, b2, false)
-
-		if !bytes.Equal(b1, b2) {
-			fmt.Println(dmp.DiffPrettyText(diffs))
-			return false
-		}
+	//LOAD MAP WITH FILE1 ROWS
+	for scanner.Scan() {
+		newm.Put(scanner.Text(), "File 1 - Row "+strconv.Itoa(row1))
+		row1++
 	}
+
+	//COMPARE CHUNCKS
+	scanner2 := bufio.NewScanner(f2)
+	buf2 := make([]byte, 0, 1*fromBtoMB)
+	scanner2.Buffer(buf2, 10*fromBtoMB)
+
+	//KEY:ROW_STRING
+	//VALUE:"File x - Row y"
+
+	//DELETE MATCHING ROWS FROM FILE2
+	for scanner2.Scan() {
+		val, found := newm.Get(scanner2.Text())
+		if found {
+			newm.Remove(scanner2.Text(), val[0])
+		} else {
+			newm.Put(scanner2.Text(), "File 2 - Row "+strconv.Itoa(row2))
+		}
+		row2++
+	}
+
+	//PRINT NOT MATCHED ROWS
+	fmt.Println("There are", newm.Size(), "differencies")
+	for _, key := range newm.KeySet() {
+		value, _ := newm.Get(key)
+		fmt.Println(value, "-", key)
+	}
+
+	return true
 }
