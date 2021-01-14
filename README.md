@@ -13,3 +13,5 @@ go get -u github.com/jwangsadinata/go-multimap
 ```
 go run "compare_big_files.go" "file1" "file2"
 ```
+
+Tested with two 10gb files, taked half an hour to confront
